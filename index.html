@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2B Pulse — Multi-Store Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8;
+    --panel:#FFFFFF;
+    --panel-border:#E3E6EB;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --amber:#E2A33B;
+    --amber-deep:#B97C1F;
+    --teal:#0F6B66;
+    --teal-soft:#E4F1EF;
+    --red:#C1443A;
+    --red-soft:#FBEAE8;
+    --green:#3F8F5F;
+    --green-soft:#E9F5EE;
+    --amber-soft:#FBF0DC;
+    font-family:'Sora',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);min-height:100vh;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+
+  /* ---------- Login gate ---------- */
+  #loginGate{
+    position:fixed;inset:0;background:linear-gradient(160deg,#1B2430 0%,#242F3D 55%,#1B2430 100%);
+    display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .loginCard{
+    background:var(--panel);border-radius:16px;padding:36px 32px;width:100%;max-width:360px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  .loginMark{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+  .dot2{width:34px;height:34px;position:relative;flex:none;}
+  .dot2 span{position:absolute;width:20px;height:20px;border-radius:50%;top:7px;}
+  .dot2 .a{background:var(--amber);left:0;}
+  .dot2 .b{background:var(--teal);right:0;mix-blend-mode:multiply;}
+  .loginTitle{font-weight:800;font-size:19px;letter-spacing:-.01em;}
+  .loginSub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .field{margin-top:16px;}
+  .field label{font-size:12px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:6px;}
+  .field input{
+    width:100%;border:1.5px solid var(--panel-border);border-radius:9px;padding:10px 12px;
+    font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;
+  }
+  .field input:focus{border-color:var(--amber);}
+  #loginBtn{
+    margin-top:22px;width:100%;background:var(--ink);color:#fff;border:none;border-radius:9px;
+    padding:11px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:opacity .15s;
+  }
+  #loginBtn:hover{opacity:.85;}
+  #loginError{color:var(--red);font-size:12.5px;margin-top:12px;display:none;}
+  .loginHint{margin-top:18px;padding-top:16px;border-top:1px dashed var(--panel-border);font-size:11.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* ---------- Dashboard ---------- */
+  #dash{display:none;max-width:1180px;margin:0 auto;padding:24px 20px 60px;}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand .dot2{width:38px;height:38px;}
+  .brand .dot2 span{width:22px;height:22px;top:8px;}
+  .brandText h1{font-size:20px;font-weight:800;letter-spacing:-.01em;}
+  .brandText p{font-size:12.5px;color:var(--ink-soft);}
+  .liveTag{
+    display:flex;align-items:center;gap:7px;background:var(--green-soft);color:var(--green);
+    font-size:12px;font-weight:700;padding:7px 13px;border-radius:99px;
+  }
+  .pulseDot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,143,95,.55);}70%{box-shadow:0 0 0 7px rgba(63,143,95,0);}100%{box-shadow:0 0 0 0 rgba(63,143,95,0);}}
+
+  .kpiGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
+  .kpiCard{background:var(--panel);border:1px solid var(--panel-border);border-radius:14px;padding:18px 18px;}
+  .kpiLabel{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:8px;}
+  .kpiValue{font-size:25px;font-weight:700;letter-spacing:-.01em;}
+  .kpiDelta{font-size:11.5px;margin-top:6px;font-weight:600;}
+  .up{color:var(--green);} .down{color:var(--red);}
+
+  .sectionLabel{font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin:6px 0 12px;}
+
+  .shopGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-bottom:30px;}
+  .shopCard{
+    background:var(--panel);border:1px solid var(--panel-border);border-left:4px solid var(--amber);
+    border-radius:12px;padding:14px 16px;
+  }
+  .shopCard.alert{border-left-color:var(--red);}
+  .shopTop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .shopName{font-weight:700;font-size:14.5px;}
+  .shopCat{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .platformTag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;}
+  .tag-shopee{background:var(--amber-soft);color:var(--amber-deep);}
+  .tag-tiktok{background:var(--teal-soft);color:var(--teal);}
+  .shopMetrics{display:flex;justify-content:space-between;font-size:12px;}
+  .shopMetrics .m b{display:block;font-size:15px;}
+  .shopMetrics .roas.low{color:var(--red);}
+  .shopMetrics .roas.ok{color:var(--green);}
+
+  .lowerGrid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;}
+  .panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:14px;padding:18px 20px;}
+  .panel h3{font-size:14px;margin-bottom:14px;}
+  .alertRow{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--panel-border);font-size:13px;}
+  .alertRow:last-child{border-bottom:none;}
+  .alertIcon{flex:none;width:20px;text-align:center;}
+  .alertText b{display:block;font-size:13px;}
+  .alertText span{color:var(--ink-soft);font-size:12px;}
+
+  footer.note{margin-top:26px;font-size:11.5px;color:var(--ink-soft);text-align:center;line-height:1.6;}
+
+  @media(max-width:760px){
+    .kpiGrid{grid-template-columns:repeat(2,1fr);}
+    .lowerGrid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+  <div id="loginGate">
+    <div class="loginCard">
+      <div class="loginMark">
+        <div class="dot2"><span class="a"></span><span class="b"></span></div>
+        <div>
+          <div class="loginTitle">2B Pulse</div>
+          <div class="loginSub">Multi-Store Command Center</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Username</label>
+        <input id="userIn" type="text" placeholder="reviewer" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="passIn" type="password" placeholder="••••••••">
+      </div>
+      <button id="loginBtn" onclick="tryLogin()">เข้าสู่ระบบ</button>
+      <div id="loginError">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+      <div class="loginHint">Internal analytics tool for 2B TO HOME PLUS — 7 shops across Shopee &amp; TikTok Shop.</div>
+    </div>
+  </div>
+
+  <div id="dash">
+    <header class="top">
+      <div class="brand">
+        <div class="dot2"><span class="a"></span><span class="b"></span></div>
+        <div class="brandText">
+          <h1>2B Pulse</h1>
+          <p>Multi-Store Command Center — 7 shops · Shopee + TikTok Shop</p>
+        </div>
+      </div>
+      <div class="liveTag"><span class="pulseDot"></span> Live · updated 2 min ago</div>
+    </header>
+
+    <div class="kpiGrid">
+      <div class="kpiCard"><div class="kpiLabel">GMV วันนี้ (รวมทุกร้าน)</div><div class="kpiValue mono">฿68,420</div><div class="kpiDelta up">▲ 12% จากเมื่อวาน</div></div>
+      <div class="kpiCard"><div class="kpiLabel">ออเดอร์วันนี้</div><div class="kpiValue mono">312</div><div class="kpiDelta up">▲ 8%</div></div>
+      <div class="kpiCard"><div class="kpiLabel">ROAS เฉลี่ยรวม</div><div class="kpiValue mono">6.1x</div><div class="kpiDelta up">เหนือเป้า 5–6x</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Alert ที่ต้องดู</div><div class="kpiValue mono">2</div><div class="kpiDelta down">1 ร้าน ROAS ต่ำกว่าเป้า</div></div>
+    </div>
+
+    <div class="sectionLabel">ร้านค้าทั้งหมด (7)</div>
+    <div class="shopGrid" id="shopGrid"></div>
+
+    <div class="lowerGrid">
+      <div class="panel">
+        <h3>เทรนด์ GMV รวม 7 วันล่าสุด</h3>
+        <canvas id="trendChart" height="130"></canvas>
+      </div>
+      <div class="panel">
+        <h3>การแจ้งเตือนล่าสุด</h3>
+        <div class="alertRow"><div class="alertIcon">🔴</div><div class="alertText"><b>BBSOCK</b><span>ROAS วันนี้ 4.2x ต่ำกว่าเป้า 5.0x — ตรวจงบโฆษณา</span></div></div>
+        <div class="alertRow"><div class="alertIcon">🟢</div><div class="alertText"><b>MATKIDS</b><span>ยอดขายทะลุเป้ารายวันแล้ว (114%)</span></div></div>
+        <div class="alertRow"><div class="alertIcon">🟡</div><div class="alertText"><b>JUVITA</b><span>สต๊อกสินค้าขายดีเหลือต่ำกว่า 10 ชิ้น</span></div></div>
+      </div>
+    </div>
+
+    <footer class="note">ข้อมูลในหน้านี้เป็นข้อมูลตัวอย่างสำหรับสาธิตการทำงานของระบบ · เวอร์ชันจริงจะดึงข้อมูลสดจาก Shopee Open API และ TikTok Shop Partner API ของร้านค้าในเครือทั้ง 7 ร้าน</footer>
+  </div>
+
+<script>
+function tryLogin(){
+  const u = document.getElementById('userIn').value.trim();
+  const p = document.getElementById('passIn').value.trim();
+  if(u === 'reviewer' && p === '2BPulse2026'){
+    document.getElementById('loginGate').style.display = 'none';
+    document.getElementById('dash').style.display = 'block';
+    renderShops();
+    renderChart();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+document.getElementById('passIn').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
+
+const shops = [
+  {name:'BBtoHOME88', cat:'Home & Office', platform:'Shopee', gmv:'18,200', roas:'6.4x', alert:false},
+  {name:'BBSOCK', cat:'Socks', platform:'Shopee', gmv:'9,800', roas:'4.2x', alert:true},
+  {name:'MATKIDS', cat:'Kids', platform:'TikTok', gmv:'14,500', roas:'7.1x', alert:false},
+  {name:'JUVITA', cat:'Stationery', platform:'Shopee', gmv:'6,300', roas:'5.5x', alert:false},
+  {name:'JUNORIA', cat:"Women's Fashion Socks", platform:'TikTok', gmv:'5,100', roas:'5.9x', alert:false},
+  {name:'GoodVibeZ', cat:'', platform:'Shopee', gmv:'9,900', roas:'6.0x', alert:false},
+  {name:'Minta88', cat:'', platform:'TikTok', gmv:'4,620', roas:'5.3x', alert:false},
+];
+
+function renderShops(){
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = shops.map(s => `
+    <div class="shopCard ${s.alert ? 'alert' : ''}">
+      <div class="shopTop">
+        <div>
+          <div class="shopName">${s.name}</div>
+          <div class="shopCat">${s.cat}</div>
+        </div>
+        <div class="platformTag ${s.platform === 'Shopee' ? 'tag-shopee' : 'tag-tiktok'}">${s.platform}</div>
+      </div>
+      <div class="shopMetrics">
+        <div class="m">GMV วันนี้<b class="mono">฿${s.gmv}</b></div>
+        <div class="m">ROAS<b class="mono roas ${s.alert ? 'low' : 'ok'}">${s.roas}</b></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderChart(){
+  const ctx = document.getElementById('trendChart');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['26 ก.ค.','27 ก.ค.','28 ก.ค.','29 ก.ค.','30 ก.ค.','31 ก.ค.','1 ส.ค.'],
+      datasets: [{
+        label: 'GMV รวม (บาท)',
+        data: [42000,48500,51000,47000,60000,72000,68420],
+        borderColor: '#E2A33B',
+        backgroundColor: 'rgba(226,163,59,0.12)',
+        borderWidth: 2.5,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 3,
+        pointBackgroundColor: '#E2A33B',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => '฿' + v.toLocaleString() }, grid: { color: '#EEF0F3' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
