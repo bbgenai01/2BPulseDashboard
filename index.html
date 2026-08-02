@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>2B Pulse — Multi-Store Command Center</title>
+<script>
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get('code');
+  if (code) {
+    window.location.replace(
+      'https://script.google.com/macros/s/AKfycbxQIsj9Nt2ZWcJPZT00tf72NsERFHwYpmyEUgzwQ9qA7i1VF3MTewHI7NZR84tubXdu/exec?platform=tiktok&code=' + encodeURIComponent(code)
+    );
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
