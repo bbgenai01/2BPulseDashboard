@@ -330,15 +330,15 @@ function renderChart(){
   // รวม GMV ทุกร้าน แยกตามเวลาที่ดึงข้อมูล
   const byTime = {};
   historyRows.forEach(function(r){
-    const t = r.updated_at;
-    if (!t) return;
+    if (!r.updated_at) return;
+    const t = r.updated_at.substring(0, 16);   // ตัดวินาทีทิ้ง เหลือ yyyy-mm-dd hh:mm
     byTime[t] = (byTime[t] || 0) + Number(r.gmv_today || 0);
   });
 
   const times = Object.keys(byTime).sort();
 
   const labels = times.map(function(t){
-    const d = new Date(t.replace(' ', 'T'));
+    const d = new Date(t.replace(' ', 'T') + ':00');
     return isNaN(d) ? t
       : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
   });
