@@ -160,25 +160,24 @@
         <div class="dot2"><span class="a"></span><span class="b"></span></div>
         <div class="brandText">
           <h1>2B Pulse</h1>
-          <p>Multi-Store Command Center — 7 shops · Shopee + TikTok Shop</p>
+          <p>Multi-Store Command Center — 3 shops · TikTok Shop</p>
         </div>
       </div>
-      <div class="liveTag"><span class="pulseDot"></span> Live · updated 2 min ago</div>
+      <div class="liveTag"><span class="pulseDot"></span> <span id="liveStamp">กำลังโหลด…</span></div>
     </header>
 
     <div class="kpiGrid">
-      <div class="kpiCard"><div class="kpiLabel">GMV วันนี้ (รวมทุกร้าน)</div><div class="kpiValue mono">฿68,420</div><div class="kpiDelta up">▲ 12% จากเมื่อวาน</div></div>
-      <div class="kpiCard"><div class="kpiLabel">ออเดอร์วันนี้</div><div class="kpiValue mono">312</div><div class="kpiDelta up">▲ 8%</div></div>
-      <div class="kpiCard"><div class="kpiLabel">ROAS เฉลี่ยรวม</div><div class="kpiValue mono">6.1x</div><div class="kpiDelta up">เหนือเป้า 5–6x</div></div>
-      <div class="kpiCard"><div class="kpiLabel">Alert ที่ต้องดู</div><div class="kpiValue mono">2</div><div class="kpiDelta down">1 ร้าน ROAS ต่ำกว่าเป้า</div></div>
+      <div class="kpiCard"><div class="kpiLabel">GMV วันนี้ (รวมทุกร้าน)</div><div class="kpiValue mono" id="kpiGmv">—</div><div class="kpiDelta" id="kpiGmvSub">กำลังโหลด…</div></div>
+      <div class="kpiCard"><div class="kpiLabel">ออเดอร์วันนี้</div><div class="kpiValue mono" id="kpiOrders">—</div><div class="kpiDelta" id="kpiOrdersSub">กำลังโหลด…</div></div>
+      <div class="kpiCard"><div class="kpiLabel">ROAS เฉลี่ยรวม</div><div class="kpiValue mono" id="kpiRoas">—</div><div class="kpiDelta">รอเชื่อม Ads API</div></div>
+      <div class="kpiCard"><div class="kpiLabel">Alert ที่ต้องดู</div><div class="kpiValue mono" id="kpiAlert">—</div><div class="kpiDelta" id="kpiAlertSub">ระบบทำงานปกติ</div></div>
     </div>
-
-    <div class="sectionLabel">ร้านค้าทั้งหมด (7)</div>
+    <div class="sectionLabel" id="shopCount">ร้านค้าทั้งหมด (3)</div>
     <div class="shopGrid" id="shopGrid"></div>
 
     <div class="lowerGrid">
       <div class="panel">
-        <h3>เทรนด์ GMV รวม 7 วันล่าสุด</h3>
+        <h3>เทรนด์ GMV วันนี้</h3>
         <canvas id="trendChart" height="130"></canvas>
       </div>
       <div class="panel">
@@ -202,12 +201,14 @@ function tryLogin(){
 
     loadLiveData(function(){
       renderShops();
+      renderKPI();
       renderChart();
     });
 
     setInterval(function(){
       loadLiveData(function(){
         renderShops();
+        renderKPI();
         renderChart();
       });
     }, 5 * 60 * 1000);
@@ -295,7 +296,30 @@ function renderShops(){
     </div>
   `).join('');
 }
+function renderKPI(){
+  const totalGmv = shops.reduce(function(s, x){
+    return s + Number(String(x.gmv).replace(/,/g, ''));
+  }, 0);
+  const totalOrders = shops.reduce(function(s, x){ return s + Number(x.orders); }, 0);
+  const alertCount  = shops.filter(function(x){ return x.alert; }).length;
 
+  document.getElementById('kpiGmv').textContent =
+    '฿' + totalGmv.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('kpiGmvSub').textContent = 'จาก ' + shops.length + ' ร้าน';
+
+  document.getElementById('kpiOrders').textContent    = totalOrders;
+  document.getElementById('kpiOrdersSub').textContent = 'ข้อมูลสดจาก TikTok Shop API';
+
+  document.getElementById('kpiRoas').textContent  = '—';
+  document.getElementById('kpiAlert').textContent = alertCount;
+  document.getElementById('kpiAlertSub').textContent =
+    alertCount === 0 ? 'ระบบทำงานปกติ' : 'ดึงข้อมูลไม่สำเร็จ ' + alertCount + ' ร้าน';
+
+  document.getElementById('shopCount').textContent = 'ร้านค้าทั้งหมด (' + shops.length + ')';
+
+  const last = shops.length && shops[0].updated ? shops[0].updated.substring(11, 16) : '-';
+  document.getElementById('liveStamp').textContent = 'Live · อัปเดต ' + last + ' น.';
+}
 let chartInstance = null;
 
 function renderChart(){
