@@ -213,7 +213,7 @@ function tryLogin(){
     }, 5 * 60 * 1000);
 
   } else {
-    ...
+    document.getElementById('loginErr').style.display = 'block';
   }
 }
 document.getElementById('passIn').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
