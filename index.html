@@ -17,7 +17,7 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
   :root{
     --bg:#F5F6F8;
@@ -199,23 +199,80 @@ function tryLogin(){
   if(u === 'reviewer' && p === '2BPulse2026'){
     document.getElementById('loginGate').style.display = 'none';
     document.getElementById('dash').style.display = 'block';
-    renderShops();
-    renderChart();
+
+    loadLiveData(function(){
+      renderShops();
+      renderChart();
+    });
+
+    setInterval(function(){
+      loadLiveData(function(){
+        renderShops();
+        renderChart();
+      });
+    }, 5 * 60 * 1000);
+
   } else {
-    document.getElementById('loginError').style.display = 'block';
+    ...
   }
 }
 document.getElementById('passIn').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
 
-const shops = [
-  {name:'BBtoHOME88', cat:'Home & Office', platform:'Shopee', gmv:'18,200', roas:'6.4x', alert:false},
-  {name:'BBSOCK', cat:'Socks', platform:'Shopee', gmv:'9,800', roas:'4.2x', alert:true},
-  {name:'MATKIDS', cat:'Kids', platform:'TikTok', gmv:'14,500', roas:'7.1x', alert:false},
-  {name:'JUVITA', cat:'Stationery', platform:'Shopee', gmv:'6,300', roas:'5.5x', alert:false},
-  {name:'JUNORIA', cat:"Women's Fashion Socks", platform:'TikTok', gmv:'5,100', roas:'5.9x', alert:false},
-  {name:'GoodVibeZ', cat:'', platform:'Shopee', gmv:'9,900', roas:'6.0x', alert:false},
-  {name:'Minta88', cat:'', platform:'TikTok', gmv:'4,620', roas:'5.3x', alert:false},
-];
+const DATA_SOURCE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSNkfcFf2grhy4-gEE7tD28LYAqp_vXOZutl_-5T9sqpwaMHSd2AbKcbcXsz2vLU40TtVFA2b7NTCmT/pub?gid=1566777779&single=true&output=csv';
+
+// ข้อมูลสำรอง ใช้เฉพาะตอนโหลด CSV ไม่สำเร็จ
+let shops = [];
+
+// map ชื่อร้านในชีต → หมวดหมู่ที่จะแสดง
+const SHOP_META = {
+  'BBTOHOME88': { cat: 'Home & Office' },
+  'BBSOCK':     { cat: 'Socks' },
+  'MATKIDS88':  { cat: 'Kids' }
+};
+
+let historyRows = [];   // เก็บทุกแถวไว้ทำกราฟ trend
+
+function loadLiveData(callback) {
+  Papa.parse(DATA_SOURCE_CSV_URL + '&t=' + Date.now(), {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    complete: function(res) {
+      const rows = res.data.filter(function(r) { return r.shop && r.updated_at; });
+      historyRows = rows;
+
+      // หยิบแถวล่าสุดของแต่ละร้าน
+      const latest = {};
+      rows.forEach(function(r) {
+        const t = new Date(r.updated_at).getTime();
+        if (!latest[r.shop] || t > latest[r.shop]._t) {
+          latest[r.shop] = { _t: t, row: r };
+        }
+      });
+
+      shops = Object.keys(latest).map(function(name) {
+        const r = latest[name].row;
+        const meta = SHOP_META[name] || {};
+        return {
+          name:     name,
+          cat:      meta.cat || '',
+          platform: r.platform === 'tiktok' ? 'TikTok' : 'Shopee',
+          gmv:      Number(r.gmv_today).toLocaleString('en-US'),
+          orders:   Number(r.orders_today),
+          roas:     'รอเชื่อม Ads API',
+          alert:    r.status !== 'ok',
+          updated:  r.updated_at
+        };
+      });
+
+      if (typeof callback === 'function') callback();
+    },
+    error: function(err) {
+      console.error('โหลดข้อมูลไม่สำเร็จ', err);
+      if (typeof callback === 'function') callback();
+    }
+  });
+}
 
 function renderShops(){
   const grid = document.getElementById('shopGrid');
@@ -230,21 +287,46 @@ function renderShops(){
       </div>
       <div class="shopMetrics">
         <div class="m">GMV วันนี้<b class="mono">฿${s.gmv}</b></div>
-        <div class="m">ROAS<b class="mono roas ${s.alert ? 'low' : 'ok'}">${s.roas}</b></div>
+        <div class="m">ออเดอร์<b class="mono">${s.orders}</b></div>
+      </div>
+      <div class="shopCat" style="margin-top:8px;font-size:11px;opacity:.7">
+        อัปเดต ${s.updated ? s.updated.substring(11, 16) : '-'} น. · ROAS รอเชื่อม Ads API
       </div>
     </div>
   `).join('');
 }
 
+let chartInstance = null;
+
 function renderChart(){
   const ctx = document.getElementById('trendChart');
-  new Chart(ctx, {
+
+  // รวม GMV ทุกร้าน แยกตามเวลาที่ดึงข้อมูล
+  const byTime = {};
+  historyRows.forEach(function(r){
+    const t = r.updated_at;
+    if (!t) return;
+    byTime[t] = (byTime[t] || 0) + Number(r.gmv_today || 0);
+  });
+
+  const times = Object.keys(byTime).sort();
+
+  const labels = times.map(function(t){
+    const d = new Date(t.replace(' ', 'T'));
+    return isNaN(d) ? t
+      : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+  });
+  const values = times.map(function(t){ return Math.round(byTime[t]); });
+
+  if (chartInstance) chartInstance.destroy();   // กันกราฟซ้อนตอนรีเฟรช
+
+  chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: ['26 ก.ค.','27 ก.ค.','28 ก.ค.','29 ก.ค.','30 ก.ค.','31 ก.ค.','1 ส.ค.'],
+      labels: labels,
       datasets: [{
         label: 'GMV รวม (บาท)',
-        data: [42000,48500,51000,47000,60000,72000,68420],
+        data: values,
         borderColor: '#E2A33B',
         backgroundColor: 'rgba(226,163,59,0.12)',
         borderWidth: 2.5,
