@@ -339,8 +339,9 @@ function renderChart(){
 
   const labels = times.map(function(t){
     const d = new Date(t.replace(' ', 'T') + ':00');
-    return isNaN(d) ? t
-      : ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    if (isNaN(d)) return t;
+    return (d.getMonth()+1) + '/' + d.getDate() + ' ' +
+           ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
   });
   const values = times.map(function(t){ return Math.round(byTime[t]); });
 
