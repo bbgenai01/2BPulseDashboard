@@ -394,7 +394,11 @@ function renderChart(){
     byTime[t] = (byTime[t] || 0) + Number(r.gmv_today || 0);
   });
 
-  const times = Object.keys(byTime).sort();
+  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+  const times = Object.keys(byTime).sort().filter(function(t){
+    const d = new Date(t.replace(' ', 'T') + ':00');
+    return !isNaN(d) && d.getTime() >= cutoff;
+  });
 
   const labels = times.map(function(t){
     const d = new Date(t.replace(' ', 'T') + ':00');
