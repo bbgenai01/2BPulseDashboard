@@ -189,7 +189,13 @@
         </div>
       </div>
     </div>
-
+<div class="panel" style="margin-top:18px">
+      <h3>ออเดอร์ล่าสุดจาก TikTok Shop API</h3>
+      <div style="font-size:12px;color:#666;margin:-4px 0 10px">
+        Live order records retrieved via POST /order/202309/orders/search — TikTok order IDs (18 digits) and product IDs as returned by the API
+      </div>
+      <div id="orderTable"></div>
+    </div>
     <footer class="note">ข้อมูลสดจาก TikTok Shop Partner API · อัปเดตอัตโนมัติทุก 30 นาที · การเชื่อมต่อ Shopee Open API อยู่ระหว่างรอการอนุมัติ</footer>
   </div>
 
@@ -202,18 +208,20 @@ function tryLogin(){
     document.getElementById('dash').style.display = 'block';
 
     loadLiveData(function(){
-      renderShops();
-      renderKPI();
-      renderChart();
-    });
+  renderShops();
+  renderKPI();
+  renderChart();
+});
+loadOrders(renderOrders);
 
-    setInterval(function(){
-      loadLiveData(function(){
-        renderShops();
-        renderKPI();
-        renderChart();
-      });
-    }, 5 * 60 * 1000);
+setInterval(function(){
+  loadLiveData(function(){
+    renderShops();
+    renderKPI();
+    renderChart();
+  });
+  loadOrders(renderOrders);
+}, 5 * 60 * 1000);
 
   } else {
     document.getElementById('loginErr').style.display = 'block';
@@ -222,7 +230,58 @@ function tryLogin(){
 document.getElementById('passIn').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
 
 const DATA_SOURCE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSNkfcFf2grhy4-gEE7tD28LYAqp_vXOZutl_-5T9sqpwaMHSd2AbKcbcXsz2vLU40TtVFA2b7NTCmT/pub?gid=1566777779&single=true&output=csv';
+const ORDERS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSNkfcFf2grhy4-gEE7tD28LYAqp_vXOZutl_-5T9sqpwaMHSd2AbKcbcXsz2vLU40TtVFA2b7NTCmT/pub?gid=975784725&single=true&output=csv';
 
+let recentOrders = [];
+
+function loadOrders(callback){
+  Papa.parse(ORDERS_CSV_URL + '&t=' + Date.now(), {
+    download: true, header: true, skipEmptyLines: true,
+    complete: function(res){
+      recentOrders = res.data.filter(function(r){ return r.order_id; });
+      if (typeof callback === 'function') callback();
+    },
+    error: function(err){
+      console.error('โหลดออเดอร์ไม่สำเร็จ', err);
+      if (typeof callback === 'function') callback();
+    }
+  });
+}
+
+function renderOrders(){
+  const el = document.getElementById('orderTable');
+  if (!el) return;
+
+  if (!recentOrders.length) {
+    el.innerHTML = '<div style="padding:16px 0;color:#666;font-size:14px">ยังไม่มีออเดอร์ในวันนี้</div>';
+    return;
+  }
+
+  el.innerHTML =
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">' +
+    '<thead><tr style="text-align:left;color:#666;border-bottom:1px solid #E3E6EB">' +
+      '<th style="padding:8px 10px;font-weight:600">TikTok Order ID</th>' +
+      '<th style="padding:8px 10px;font-weight:600">Shop</th>' +
+      '<th style="padding:8px 10px;font-weight:600">Product ID</th>' +
+      '<th style="padding:8px 10px;font-weight:600">Product</th>' +
+      '<th style="padding:8px 10px;font-weight:600;text-align:right">Amount</th>' +
+      '<th style="padding:8px 10px;font-weight:600">Status</th>' +
+      '<th style="padding:8px 10px;font-weight:600">Created</th>' +
+    '</tr></thead><tbody>' +
+    recentOrders.map(function(o){
+      const nm = (o.product_name || '');
+      return '<tr style="border-bottom:1px solid #F1F3F5">' +
+        '<td style="padding:8px 10px;font-family:monospace;white-space:nowrap">' + o.order_id + '</td>' +
+        '<td style="padding:8px 10px;white-space:nowrap">' + o.shop + '</td>' +
+        '<td style="padding:8px 10px;font-family:monospace;white-space:nowrap">' + o.product_id + '</td>' +
+        '<td style="padding:8px 10px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + nm + '</td>' +
+        '<td style="padding:8px 10px;text-align:right;font-family:monospace;white-space:nowrap">฿' + o.amount + '</td>' +
+        '<td style="padding:8px 10px;white-space:nowrap">' + o.status + '</td>' +
+        '<td style="padding:8px 10px;white-space:nowrap">' + o.create_time + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+}
 // ข้อมูลสำรอง ใช้เฉพาะตอนโหลด CSV ไม่สำเร็จ
 let shops = [];
 
